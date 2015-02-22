@@ -3,7 +3,11 @@ import json
 import os
 import flask
 import smtplib, smtpd
+import pprint
+import requests
+import urllib2
 from flask import Flask, session, request, render_template, flash, redirect, url_for, g, jsonify
+from lxml import html
 
 app = Flask(__name__)
 
@@ -14,6 +18,7 @@ SENDER = 'chloe@parse-in1.mailjet.com'
 
 from threading import Thread
 
+
 @app.route("/email_process", methods = ['POST'])
 def email_processor():
    data = request.data
@@ -22,14 +27,15 @@ def email_processor():
    sender = dataDict['Sender']
    subject = dataDict['Subject']
 
-   print(sender)
+   pprint.pprint(dataDict)
+   print sender
    print subject
    print(body)
 
    # Send e-mail back to sender
-   send_mail(body, sender, find_commands(subject))
+   send_mail(' '.join(find_commands(body)), sender, subject)
 
-   return body
+   return find_commands(body)
 
 # PASS IN THE EMAIL
 def find_commands(string):
@@ -42,7 +48,10 @@ def find_commands(string):
     for n,i in enumerate(temp):
         if str(i).startswith("SEARCH"):
             # do the search here
-            temp[n] = 'hello'
+
+
+            temp[n] = search_wolfram(i)
+
     return temp
 
 def send_mail(text, receiver, subject):
@@ -61,6 +70,75 @@ def send_mail(text, receiver, subject):
       print "Successfully sent email to %s" % receiver
    except smtplib.SMTPException:
       print "Error: unable to send email to %s" % receiver
+
+def search_wolfram(query):
+  WOLFRAM_API = '24XA4V-T44JJ5Y9QJ'
+  #response = request.args.get('query')
+  #query = str(response)
+  query_formatted = query.replace(' ', '%20')
+  url = 'http://api.wolframalpha.com/v2/query?input=' + query_formatted + '&appid=' + WOLFRAM_API
+  data = urllib2.urlopen(url)
+  
+
+  tree = html.fromstring(data.read())
+
+  # Make sure query is successful
+  querysuccess = tree.xpath('//queryresult/@success')
+  if 'true' in querysuccess:
+    print "Wolfram query success"
+  else:
+    print "Wolfram query failed"
+    return query
+
+  # Retrieve <plaintext>ANSWER</plaintext> from <pod title = 'Result'>
+  result = tree.xpath('//queryresult/pod[@title="Result"]/subpod/plaintext/text()')
+  
+  if not result:
+    return query
+  print result
+
+  print url
+  print data.read()
+  return result[0]
+
+@app.route("/search", methods = ['GET'])
+def search():
+  WOLFRAM_API = '24XA4V-T44JJ5Y9QJ'
+  response = request.args.get('query')
+  query = str(response)
+  query_formatted = query.replace(' ', '%20')
+  url = 'http://api.wolframalpha.com/v2/query?input=' + query_formatted + '&appid=' + WOLFRAM_API
+  data = urllib2.urlopen(url)
+  
+
+  tree = html.fromstring(data.read())
+
+  # Make sure query is successful
+  querysuccess = tree.xpath('//queryresult/@success')
+  if 'true' in querysuccess:
+    print "Wolfram query success"
+  else:
+    print "Wolfram query failed"
+    return 
+
+ 
+
+  # Retrieve <plaintext>ANSWER</plaintext> from <pod title = 'Result'>
+  result = tree.xpath('//queryresult/pod[@title="Result"]/subpod/plaintext/text()')
+  
+  print result
+  if not result:
+    return query
+  print result
+
+  print url
+  print data.read()
+  return result[0]
+
+  #print query
+	#return query
+
+
 
 if __name__ =="__main__":
     app.run(debug =True)
