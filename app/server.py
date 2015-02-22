@@ -27,11 +27,23 @@ def email_processor():
    print(body)
 
    # Send e-mail back to sender
-   send_mail(body, sender, subject)
-
+   send_mail(body, sender, find_commands(subject))
 
    return body
 
+# PASS IN THE EMAIL
+def find_commands(string):
+    temp=[]
+
+    for i in string.split("{{"):
+        for j in i.split("}}"):
+            temp.append(j)
+
+    for n,i in enumerate(temp):
+        if str(i).startswith("SEARCH"):
+            # do the search here
+            temp[n] = 'hello'
+    return temp
 
 def send_mail(text, receiver, subject):
    message = "\r\n".join([
@@ -50,6 +62,7 @@ def send_mail(text, receiver, subject):
    except smtplib.SMTPException:
       print "Error: unable to send email to %s" % receiver
 
-
 if __name__ =="__main__":
     app.run(debug =True)
+
+#curl --user "c8469ff849bfa3c7d7a749998c85b94c:f0546ae2b1486c2838cd3a7f36863246" https://api.mailjet.com/v3/REST/parseroute -H "Content-Type: application/json" -d '{"Url":"https://700d664a.ngrok.com/email_process", "Email":"chloe@parse-in1.mailjet.com"}'
